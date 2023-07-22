@@ -1,0 +1,218 @@
+\section{Première approche}
+
+Commençons par présenter l'isomorphisme en lui-même, et pour cela un exemple sera le plus parlant. Considérons la règle logique du \textit{modus ponens} d'un côté, et la règle de typage de l'application du lambda-calcul de l'autre :
+
+\begin{center}
+    \begin{prooftree}
+        \hypo{\Gamma\vdash P\implies Q}
+        \hypo{\Gamma\vdash P}
+        \infer2{\Gamma\vdash Q}
+    \end{prooftree}
+    \qquad
+    \qquad
+    \begin{prooftree}
+        \hypo{\Gamma\vdash f : \sigma\to\tau}
+        \hypo{\Gamma\vdash x : \sigma}
+        \infer2{\Gamma\vdash f\;x : \tau}
+    \end{prooftree}
+\end{center}
+
+On peut clairement voir une ressemblance formelle : si l'on fait correspondre $\sigma$ à $P$ et $\tau$ à $Q$, alors les règles sont essentiellement les mêmes, à ceci près qu'en logique nous n'avons pas de termes. De plus, on peut montrer que si l'on arrive à prouver $\Gamma\vdash M : \tau$ alors il existe un unique arbre de dérivation de ce jugement de typage. Ceci signifie donc qu'un lambda-terme peut servir à encoder, de façon très compacte, l'arbre de preuve qui lui est associé. Dans ce contexte, en élargissant la correspondance précédente à tous les constructeurs de $\Lambda^{\to\times 1+0}$, on peut coder un arbre de preuve avec une simple expression typée dans un contexte donné. Nous allons donc préciser cette correspondance règle par règle, dans un premier temps.
+
+\subsection{Les correspondances, règle par règle}
+
+\paragraph{La règle axiome}
+
+La règle structurelle essentielle est celle d'axiome, étant $\Gamma\vdash P$ si $P\in \Gamma$. La règle de typage lui correspondant est la règle $\Gamma\vdash x : \tau$ si $(x : \tau)\in\Gamma$. On voit donc ici que dans le monde des expressions typées, un type n'apparaît pas seul mais \og porté\fg{} en quelque sorte par un terme, ou ici une variable. L'isomorphisme de Curry-Howard, pour cette règle, correspond donc à dire que si l'on associe une variable à une hypothèse, se resservir de cette variable correspond à utiliser l'hypotèse correspondante. On a donc 
+
+\begin{center}
+    \begin{prooftree}
+        \infer0[$P\in\Gamma$]{\Gamma\vdash P}
+    \end{prooftree}
+    \quad $\iff$ \quad
+    \begin{prooftree}
+        \infer0[$(x : \tau)\in\Gamma$]{\Gamma\vdash x : \tau}
+    \end{prooftree}
+\end{center}
+
+\paragraph{Les règles d'implication}
+
+Nous avons vu la correspondance entre le modus ponens et le typage de l'application, nous allons donc présenter l'autre règle :
+
+\begin{center}
+    \begin{prooftree}
+        \hypo{\Gamma , P \vdash Q}
+        \infer1{\Gamma\vdash P\implies Q}
+    \end{prooftree}
+    \quad $\iff$ \quad
+    \begin{prooftree}
+        \hypo{\Gamma , x : \sigma\vdash M : \tau}
+        \infer1{\Gamma\vdash \lambda x.M : \sigma\to\tau}
+    \end{prooftree}
+\end{center}
+
+On peut alors se demander en quoi une fonction du lambda-calcul correspond à une implication. Le point de vue adopté est en général celui des preuves : une preuve de $P\implies Q$ peut être vue comme unee fonction qui à une preuve de $P$ associe une preuve de $Q$. Plus généralement, on peut considérer que $t : P$ se lit du côté logique, à travers la correspondance Curry-Howard, comme \og $t$ est une preuve de $P$\fg{}.
+
+\paragraph{Les règles de conjonction}
+
+Les correspondance suivantes parlent d'elles-même :
+
+\begin{center}
+    \begin{prooftree}
+        \hypo{\Gamma\vdash P}
+        \hypo{\Gamma\vdash Q}
+        \infer2{\Gamma\vdash P\land Q}
+    \end{prooftree}
+    \quad $\iff$ \quad
+    \begin{prooftree}
+        \hypo{\Gamma \vdash t : \sigma}
+        \hypo{\Gamma \vdash t' : \tau}
+        \infer2{\Gamma\vdash \langle t , t'\rangle : \sigma\times \tau}
+    \end{prooftree}
+
+    \vspace{0.5cm}
+
+    \begin{prooftree}
+        \hypo{\Gamma\vdash P\land Q}
+        \infer1{\Gamma\vdash P}
+    \end{prooftree}
+    \quad $\iff$ \quad
+    \begin{prooftree}
+        \hypo{\Gamma\vdash t : \sigma\times \tau}
+        \infer1{\Gamma\vdash \pi_1\;t : \sigma}
+    \end{prooftree}
+
+    \vspace{0.5cm}
+
+    \begin{prooftree}
+        \hypo{\Gamma\vdash P \land Q}
+        \infer1{\Gamma\vdash Q}
+    \end{prooftree}
+    \quad $\iff$ \quad
+    \begin{prooftree}
+        \hypo{\Gamma\vdash t : \sigma\times \tau}
+        \infer1{\Gamma\vdash \pi_2\;t : \tau}
+    \end{prooftree}
+\end{center}
+
+Ici l'interprétation en terme de preuves est qu'une preuve de $P\land Q$ est exactement un couple $(p,p')$ d'une preuve de $P$ et d'une preuve de $Q$, les projections définissent alors canoniquement comment récupérer une preuve de $P$ (respectivement $Q$) à partir d'une preuve de $P\land Q$.
+
+De plus, le type $\unit$ peut être interpréter comme la proposition $\top$, toujours vraie : il existe une preuve canonique de cette proposition.
+
+\begin{center}
+    \begin{prooftree}
+        \infer0{\Gamma\vdash \top}
+    \end{prooftree}
+    \quad $\iff$ \quad
+    \begin{prooftree}
+        \infer0{\Gamma\vdash \langle\rangle : \unit}
+    \end{prooftree}
+\end{center}
+
+\paragraph{Les règles de disjonction}
+
+Nous présentons maintenant les règles à propos de la disjonction :
+
+\begin{center}
+    \begin{prooftree}
+        \hypo{\Gamma\vdash P}
+        \infer1{\Gamma\vdash P\lor Q}
+    \end{prooftree}
+    \quad $\iff$ \quad
+    \begin{prooftree}
+        \hypo{\Gamma\vdash t : \sigma}
+        \infer1{\Gamma\vdash \kappa_1\;t : \sigma + \tau}
+    \end{prooftree}
+
+    \vspace{0.5cm}
+
+    \begin{prooftree}
+        \hypo{\Gamma\vdash Q}
+        \infer1{\Gamma\vdash P \lor Q}
+    \end{prooftree}
+    \quad $\iff$ \quad
+    \begin{prooftree}
+        \hypo{\Gamma\vdash t : \tau}
+        \infer1{\Gamma\vdash \kappa_2\;t : \sigma + \tau}
+    \end{prooftree}
+
+    \vspace{0.5cm}
+
+    \begin{prooftree}
+        \hypo{\Gamma\vdash P \lor Q}
+        \hypo{\Gamma , P \vdash R}
+        \hypo{\Gamma , Q \vdash R}
+        \infer3{\Gamma\vdash R}
+    \end{prooftree}
+    \quad $\iff$ \quad
+    \begin{prooftree}
+        \hypo{\Gamma\vdash t : \sigma  + \sigma'}
+        \hypo{\Gamma , x_1 : \sigma\vdash t' : \tau}
+        \hypo{\Gamma , x_2 : \sigma'\vdash t'' : \tau}
+        \infer3{\Gamma\vdash \delta (x_1\mapsto t'\mid x_2\mapsto t'') t : \tau}
+    \end{prooftree}
+\end{center}
+
+Ici on peut interpréter une preuve de $P\lor Q$ comme étant au choix une preuve de $P$ ou une preuve de $Q$, avec l'information de quelle proposition est prouvée.
+
+Pour le type $\voidt$, correspondant assez évidemment à la proposition $\bot$, on remarque cependant un fait essentiel : la règle $\bot_\mathrm c$ n'est pas présente dans notre système de typage, mais on a à la place le principe d'explosion. Nous sommes donc en logique intuitionniste, n'utilisant que le principe d'explosion, strictement plus faible que la règle de l'absurde :
+
+\begin{center}
+    \begin{prooftree}
+        \hypo{\Gamma\vdash \bot}
+        \infer1{\Gamma\vdash P}
+    \end{prooftree}
+    \quad $\iff$ \quad
+    \begin{prooftree}
+        \hypo{\Gamma\vdash t : \voidt}
+        \infer1{\Gamma\vdash \delta_\bot\;t : \sigma}
+    \end{prooftree}
+\end{center}
+
+\subsection{Le théorème d'isomorphisme}
+
+On commence par définir une traduction entre les propositions et les types :
+
+\begin{defi}[Traduction propositions $\to$ types]
+    Soit l'ensemble $\mathcal P$ des propositions sur un ensemble $\mathcal V$ de variables. On définit la traduction $\trad - : \mathcal P \to T^{\to\times 1+0}$ vers les types dont les types de base sont dans $\mathcal V$ :
+    \begin{itemize}[label = $\bullet$]
+        \item si $P \in\mathcal V$ alors $\trad P = P$.
+        \item si $P = \top$ alors $\trad P = \unit$.
+        \item si $P = \bot$ alors $\trad P = \voidt$.
+        \item si $P = Q \to R$ alors $\trad P = \trad Q \to \trad R$.
+        \item si $P = Q \lor R$ alors $\trad P = \trad Q + \trad R$.
+        \item si $P = Q \land R$ alors $\trad P = \trad Q \times \trad R$.
+    \end{itemize}
+\end{defi}
+
+\begin{rmk}
+    On considère qu'on a effectué la traduction $\lnot P \equiv P\to \bot$.
+\end{rmk}
+
+\begin{defi}[Traduction types $\to$ propositions]
+    On définit, dans l'autre sens, la traduction des types vers les propositions $\trad -_T$ de façon similaire :
+    \begin{itemize}[label=$\bullet$]
+        \item si $\tau \in\mathcal V$ alors $\trad \tau_T = \tau$.
+        \item si $\tau = \unit$ alors $\trad \tau_T = \top$.
+        \item si $\tau = \voidt$ alors $\trad \tau_T = \bot$.
+        \item si $\tau = \sigma \to \sigma'$ alors $\trad \tau_T = \trad \sigma_T \to \trad{\sigma'}_T$.
+        \item si $\tau = \sigma + \sigma'$ alors $\trad \tau_T = \trad \sigma_T \lor \trad{\sigma'}_T$.
+        \item si $\tau = \sigma \times \sigma'$ alors $\trad \tau_T = \trad \sigma_T \land \trad{\sigma'}_T$.
+    \end{itemize}
+\end{defi}
+
+\begin{exo}
+    Vérifier que ces traductions sont inverses l'une de l'autre.
+\end{exo}
+
+On définit de plus la traduction d'un contexte :
+
+\begin{defi}[Traduction d'un contexte]
+    Soit une suite finie de proposition $\Gamma$, on définit la traduction $\trad\Gamma$ de la façon suivante : si $\Gamma = \varnothing$ alors $\trad\Gamma = \varnothing$, si $\Gamma = P \sqcup \Gamma'$ alors $\trad \Gamma = (x : \trad P) \sqcup \trad{\Gamma'}$ où $x$ est une nouvelle variable à chaque fois. Pour un contexte de typage $\Gamma$, on définit sa traduction $\trad\Gamma_T$ en remplaçant chaque $x : \tau$ par $\trad\tau_T$.
+\end{defi}
+
+Le théorème est le suivant :
+
+\begin{them}[Isomorphisme de Curry-Howard]
+    Soit une proposition $P \in\mathcal P$, alors pour toute liste de proposition $\Gamma$ on a $\Gamma\vdash P$ en logique intuitionniste si et seulement s'il existe un lambda-terme $t\in\Lambda^{\to\times 1+0}$ tel que $\trad\Gamma\vdash t : \trad P$.
+\end{them}

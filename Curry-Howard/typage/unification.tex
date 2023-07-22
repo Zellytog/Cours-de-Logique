@@ -1,0 +1,167 @@
+\section{Le typage en pratique}
+
+Dans cette section, nous allons étudier le typage dans la pratique, en voyant comment typer une expression étant données des règles de typage. Nous allons introduire pour cela la notion de probblème d'unification, qui correspond intuitivement à une instance du problème de typer une expression en donnant les contraintes sur les sous-expressions.
+
+\subsection{Définition d'un problème d'unification}
+
+Définissons d'abord ce qu'est un problème d'unification. Nous allons abstraire le cas particulier des types pour l'instant. Pour cela, on se place dans un ensemble de termes sur une signature $\Sigma = \langle \mathcal F,\alpha\rangle$ permettant de construire des termes (nous n'avons pas besoin de symboles de relation). Etant donné un ensemble infini $\VV$ de variables, on notera $\mathcal T(\Sigma,\VV)$ l'ensemble des termes sur $\Sigma$ prenant leurs variables dans $\VV$.
+
+\begin{defi}[Problème d'unification]
+    Un problème d'unification est la donnée d'un ensemble fini de paires de termes dans $\mathcal T(\Sigma,\VV)$, qu'on notera $\PP = \{ \{t_1,u_1\},\ldots,\{t_k,u_k\}\}$.
+
+    On appelle solution d'un problème $\PP$ une fonction partielle $\sigma : \VV\to \Tt(\Sigma,\VV)$ telle que pour tout $\{t,u\}\in\PP, t\;\sigma = u\;\sigma$.
+
+    On note $U(\PP)$ l'ensemble des solutions du problème $\PP$, et on appelle unificateur le plus général de $\PP$ une solution $\sigma\in U(\PP)$ telle que $\forall \sigma'\in U(\PP), \exists \sigma'', \sigma'=\sigma''\circ \sigma$.
+\end{defi}
+
+Moralement, un unificateur le plus général est une solution au problème telle que n'importe quelle autre solution peut être obtenue en adaptant celle-ci.
+
+\begin{expl}
+    On prend $\Sigma = \langle \{\to\},\{\to\mapsto 2\}\rangle$ la grammaire $T_\to$ où $\mathcal B = \VV$ notre ensemble de variables (on appelle ces variables des variables de type). Imaginons que l'on veuille typer $\lambda x.x$. On peut alors construire le problème d'unification suivant : $$\{\{T_x,T\},\{T_{\lambda x.x},T\to T_x\}$$ en notant $T$ le type que l'on suppose être celui de $x$, $T_x$ le type du terme $x$ et $T_{\lambda x.x}$ le type du terme total. Dans ce cas, un unificateur le plus général est par exemple $$T_x\mapsto T, T_{\lambda x.x}\mapsto T\to T$$ et on peut remarquer que si l'on veut fixer un type à l'expression, on peut remplacer $T$ par un certain type $T'$ : toute solution sera de cette forme.
+\end{expl}
+
+\begin{rmk}
+    Nous utilisons ici un formalisme plus faible des lambda-termes que la version très fortement typée précédente où l'on précisait absolument tous les types. Ici, la notion de problème d'unification permet d'inférer des types à nos termes, c'est-à-dire à donner un type le plus général possible à notre type même s'il n'est pas pleinement annoté.
+\end{rmk}
+
+Notre objectif est désormais de donner un algorithme résolvant des problèmes d'unification.
+
+\begin{defi}[Algorithme d'unification]
+    On considère le système de réécriture dont l'ensemble de termes est constitué des couples $(\PP,\sigma)$ où $\PP$ est un problème d'unification et $\sigma$ est une substitution, ainsi que de $\bot$ qui va représenter notre cas d'échec. La relation de réécriture est définie de la façon suivante :
+    \begin{itemize}[label=$\bullet$]
+        \item $\bot\not\to$ et $(\varnothing,\sigma)\not\to$.
+        \item Pour un couple de la forme $(\PP,\sigma)$ où $\PP\neq\varnothing$, on réécrit le couple $(\{\{t,t'\}\}\sqcup \PP',\sigma)$ et on distinguer plusieurs cas :
+        \begin{itemize}[label=$\bullet$]
+            \item Si $\{t,t'\}\cap \VV = \varnothing$, c'est-à-dire que ni $t$ ni $t'$ ne sont des variables, alors deux sous-cas sont possibles :
+            \begin{enumerate}
+                \item $(\{f(t_1,\ldots,t_k),f(u_1,\ldots,u_k)\},\sigma)\to (\{\{t_1,u_1\},\ldots,\{t_k,u_k\}\}\cup \PP',\sigma)$.
+                \item $(\{f(t_1,\ldots,t_k),g(u_1,\ldots,u_p)\},\sigma)\to \bot$ pour $f\neq g$.
+            \end{enumerate}
+            \item Si $\{t,t'\}\cap \VV\neq\varnothing$, alors sans perte de généralité on considère que $t' = X \in\VV$, on distingue alors trois sous-cas :
+            \begin{enumerate}
+                \item $(\{\{X,X\}\}\sqcup \PP',\sigma)\to (\PP',\sigma)$.
+                \item $(\{\{X,t\}\}\sqcup \PP',\sigma)\to\bot$ si $X\in\varlib t$ et $X\neq t$.
+                \item $(\{\{X,t\}\}\sqcup\PP',\sigma)\to (\PP'[t/X],\sigma[t/X])$ si $X\notin\varlib t$.
+            \end{enumerate}
+        \end{itemize}
+    \end{itemize}
+\end{defi}
+
+On va donc montrer que l'algorithme consistant à simplement réduire un couple le plus possible, vérifie les propriétés attendues (l'algorithme termine et retourne le résultat voulu).
+
+\begin{lem}
+    La relation $\to$ est fortement normalisante.
+\end{lem}
+
+\begin{proof}
+    Pour prouver cela, on va associer à chaque terme une \og norme\fg{} $|-|$ de réduction dans $\nat\times\nat$ muni du bon ordre lexicographique. En effet, si l'on a pour tout $\alpha\to\beta$, $|\alpha| < |\beta|$ alors, comme on travaille sur un bon ordre, il ne peut exister de suite infinie de réduction.
+
+    On définit donc $\varlib\PP =\displaystyle{\bigcup_{\{t,u\}\in\PP} \varlib t \cup \varlib u}$ et $|\PP|_0 = \displaystyle{\sum_{\{t,u\}\in\PP}|t|+|u|}$ où $|t|$ et $|u|$ désignent la profondeur de $t$ et $u$, c'est-à-dire le $n$ tel que $t\in I_n$ dans la construction inductive des termes. On choisit comme norme $$|\PP| = (|\varlib \PP |,|\PP|_0)$$ et on raisonne selon chaque cas : dans les premiers sous-cas, on remarque que $\varlib \PP$ reste constant, tandis que $|\PP|_0$ décroît strictement. Dans les deuxième sous-cas, la décroissance est évidente dans les sous-cas $1$ et $2$, et dans le cas $3$ $|\PP|_0$ peut augmenter, mais $\varlib \PP$ décroît strictement.
+
+    Ainsi si $(\PP,\sigma)\to(\PP',\sigma')$ alors $|\PP| < |\PP'|$, donc il n'existe pas de réduction infinie.
+\end{proof}
+
+L'algorithme associé qui consiste à appliquer des réductions itérativement termine donc. On remarque que si l'on peut effectuer plusieurs choix, on peut se fixer un choix canonique d'ordre dans lequel considérer les $\{t,t'\}$ : par exemple si $\PP$ est donné sous forme de liste (c'est souvent le cas dans la pratique) alors on peut traiter chaque élément de la liste l'un après l'autre.
+
+\begin{lem}[Cas de refus]
+    Si $(\PP,\sigma)\to\bot$ alors $U(\PP\cup\sigma)=\varnothing$.
+\end{lem}
+
+\begin{proof}
+    On regarde les deux cas pouvant mener à $(\PP,\sigma)\to\bot$. Dans le premier cas, on a d'un côté $f$ et de l'autre $g$ avec $f\neq g$, donc pour n'importe quelle substitution dans $f$ ou dans $g$ l'égalité est impossible. Dans l'autre cas, pour une paire $\{X,t\}$, puisque $X\in\varlib t$ et $t\neq X$ on en déduit que $|t| > |X|$ et on peut montrer par induction sur les termes qu'alors $|t\;\sigma| > |X\;\sigma|$, donc on ne peut pas avoir $t\;\sigma = X\;\sigma$.
+\end{proof}
+
+Pour les autres cas, on va prouver un lemme intermédiaire, nécessitant une nouvelle définition.
+
+\begin{defi}[Forme résolue]
+    On dit qu'un couple $(\PP,\sigma)$ est sous forme résolue si pour tout $X\in\mathrm{dom}(\sigma)$, $X$ n'apparaît qu'une seule fois dans $\sigma$, c'est-à-dire seulement dans le couple $(X,t)$ où $t = \sigma(X)$, et n'apparaît pas dans $\PP$.
+\end{defi}
+
+\begin{lem}
+    Si $X\notin\mathrm{dom}(\sigma)$ alors $\sigma[t/x] = \{(X,t)\}\cup\{(Y,\sigma(Y)[t/X]\mid Y\in\mathrm{dom}(\sigma)\}$.
+\end{lem}
+
+\begin{exo}
+    Montrer ce résultat.
+\end{exo}
+
+\begin{lem}
+    Si $(\PP,\sigma)\to(\PP',\sigma')$ et $(\PP,\sigma)$ est sous forme résolue, alors $(\PP',\sigma')$ est aussi sous forme résolue et $U(\PP\cup\sigma) = U(\PP'\cup\sigma')$.
+\end{lem}
+
+\begin{proof}
+    On raisonne suivant les cas de $\to$. Le premier cas, pour deux fois la même application de fonction, fait intervenir les mêmes variables, d'où $\varlib(\PP)=\varlib(\PP')$ donc $(\PP',\sigma)$ est sous forme résolue. De plus par injectivité de $f$ (car on considère $f$ comme constructeur d'un ensemble inductif) on en déduit l'égalité des ensembles de solutions. Dans le deuxième cas, où l'on unifie $X$ et $X$, l'égalité des ensembles de solutions est évidente et $(\PP',\sigma)$ est sous forme résolue car $(\PP,\sigma)$ l'est et contient plus de termes. On se concentre alors sur le dernier cas, et on a donc $(\{\{X,t\}\}\sqcup \PP',\sigma)\to (\PP'[t/X],\sigma[t/X])$ avec $X\notin\varlib t$. D'après le lemme précédent, $\sigma[t/X] = \{(X,t)\}\sqcup\{(Y,\sigma(Y)[t/x])\mid y\in\mathrm{dom}(\sigma)\}$ donc comme $X\notin\varlib t$ et le couple initiale est sous forme résolue, on en déduit que le couple d'arrivée est aussi sous forme résolue. On montre maintenant l'égalité de l'ensemble des unificateurs par double inclusion :
+    \begin{itemize}[label=$\bullet$]
+        \item Soit $\sigma'\in U(\{\{X,t\}\}\sqcup\PP\cup \sigma)$. On remarque que si $\sigma'(X) = \sigma'(t)$ alors pour tout terme $u$, on a $u\;\sigma' [t/X] = u\;\sigma'$, ce qui est le cas pour l'unificateur considéré. Si on prend $$\{u,v\} \in \PP[t/X]\cup \sigma[t/X] = \PP[t/X] \cup \{(X,t)\}\cup\{(Y,\sigma(Y)[t/X]\mid Y\in\mathrm{dom}(\sigma)\}$$ alors trois cas sont possibles :
+        \begin{itemize}[label=$\bullet$]
+            \item Si $\{u,v\}\in \PP[t/X]$ alors comme $\sigma'$ est un unificateur, cela signifie que $u\;\sigma' [t/X] = v\;\sigma' [t/X]$ donc d'après le résultat précédent, $u\;\sigma' = v\;\sigma'$.
+            \item Si $u=X$ et $v=t$ ou inversement, alors le résultat est direct car $\sigma'$ unifie $\{X,t\}$.
+            \item Si $u = Y\in\mathrm{dom}(\sigma)$ et $v = \sigma(Y)[X/t]$, alors comme $\sigma'$ est en particulier un unificateur de $\sigma$, on en déduit que $\sigma'(Y) = \sigma'(\sigma(Y))$. D'après le résultat précédent, cela signifie que $\sigma'(\sigma(Y)[t/X]) = \sigma'(\sigma(Y))$ d'où le résultat.
+        \end{itemize}
+        \item Soit $\sigma' \in U(\PP[t/X]\cup \sigma[t/X])$. On prend alors $\{u,v\} \in \{\{X,t\}\}\sqcup \PP\cup \sigma$, d'où deux cas :
+        \begin{itemize}[label=$\bullet$]
+            \item Si $\{u,v\}\in \{\{X,t\}\}\sqcup\PP$ alors $\{u[t/X],v[t/X]\} \in \PP[t/X]$ et comme $(X,t)\in\sigma[t/X]$ on en déduit le résultat.
+            \item Si $u = Y$ et $v = \sigma(Y)$ alors déjà $X\neq Y$, puisque les couples sont sous forme résolue. On en déduit que $y\in\mathrm{dom}(\sigma)$ donc $\sigma'$ unifie cette paire. Enfin $\sigma'(\sigma(Y)[t/X]) = \sigma'(\sigma(Y))$ donc $\sigma'(Y) = \sigma'(\sigma(Y))$ d'où le résultat.
+        \end{itemize}
+    \end{itemize}
+\end{proof}
+
+On en déduit le théorème essentiel.
+
+\begin{them}
+    Si $(\PP,\varnothing)\to^* (\varnothing,\sigma)$ alors $\sigma$ est un unificateur le plus général de $\PP$. Si $(\PP,\varnothing)\to^* \bot$ alors $U(\PP) = \varnothing$.
+\end{them}
+
+\begin{exo}
+    Démontrer ce résultat.
+\end{exo}
+
+Ainsi notre algorithme permet de trouver un unificateur le plus général si et seulement s'il existe une solution au problème d'unification, et cet algorithme termine.
+
+\subsection{Unification pour le typage}
+
+On va maintenant spécialiser notre problème d'unification en définissant le contexte de l'unification de typage.
+
+\begin{defi}[Grammaire des types]
+    On définit $\mathcal X$ un ensemble infini de variables de types, et un ensemble $\mathcal B$ de types de bases, on définit l'ensemble des types $T$ par la grammaire suivante : 
+    $$\tau,\kappa ::= X\mid \iota\mid \tau\to\kappa\mid \unit\mid \tau\times\kappa\mid \voidt\mid \tau+\kappa$$ où $\tau,\kappa\in T, X\in\mathcal X, \iota\in\mathcal B$.
+\end{defi}
+
+\begin{defi}[Terme typé sans annotation]
+    On définit la grammaire des termes typé sans annotation par la grammaire suivante, sur un ensemble infini $\VV$ de variables :
+    $$M,N,P ::= x\;\Bigg|\; \lambda x.M\;\Bigg|\; M\;N\;\Bigg|\; \langle\rangle\;\Bigg|\; \langle M,N\rangle\;\Bigg|\; \pi_1\;M\;\Bigg|\; \pi_2\;M\;\Bigg|\; \kappa_1\;M\;\Bigg|\; \kappa_2\;M\;\Bigg|\; \delta\;(x_1\mapsto M\mid x_2\mapsto N)\;P\;\Bigg|\;\delta_\bot\;M$$
+\end{defi}
+
+On peut de même définir les règles de typage des termes en reprenant celles de la première section de ce chapitre. On a déjà détaillé dans un exemple comment faire pour construire un problème d'unification dans un cas particulier. Dans le cas général l'idée est la même, mais nous devons lister tous les cas. On remarquera qu'il s'agit simplement de traduire les contraintes de types liées à chaque règle de typage.
+
+\begin{defi}[Problème d'unification de typage]
+    Soit un terme $M$ typé sans annotation, qu'on convertit par $\alpha$-conversion pour que chaque variable libre soit différente des variables liées de $M$ et que chaque abstraction utilise une variable différente. On associe à $M$ un problème d'unification $\PP_M$ inductivement : à chaque sous-terme $N$ de $M$ on associe une variable de type $X_N$ ainsi qu'une variable de type $X_x$ pour chaque variable $x$, puis on génère le problème :
+    \begin{itemize}[label=$\bullet$]
+        \item si $M = x$ alors on retourne le problème $\{\{X_M,X_x\}\}$.
+        \item si $M = \langle\rangle$ alors on retourne le problème $\{\{X_M,\unit\}\}$.
+        \item si $M = N\;P$ alors on retourne le problème $\PP_N\cup\PP_P\cup\{\{X_N,X_P\to X_M\}\}$.
+        \item si $M = \lambda x.N$ alors on retourne le problème $\PP_N\cup\{\{X_M,X_x\to X_N\}\}$.
+        \item si $M = \langle N,P\rangle$ alors on retourne le problème $\PP_N\cup\PP_P\cup\{\{X_M,X_N\times X_P\}\}$.
+        \item si $M = \pi_1\;N$ alors on retourne le problème $\PP_N\cup\{\{X_M,X\},\{X\times Y,X_N\}\}$ où $X$ et $Y$ sont deux variables fraîches.
+        \item de même pour $\pi_2\;N$.
+        \item si $M = \kappa_1\;N$ alors on retourne le problème $\PP_N\cup \{\{X_M,X+Y\},\{X,X_N\}\}$ avec $X$ et $Y$ deux variables fraîches.
+        \item si $M = \delta\;(x_1\mapsto N\mid x_2\mapsto P)\;Q$ alors on retourne le problème $$\PP_N\cup\PP_P\cup\PP_Q\cup\{\{X_Q,X_N,X_P\},\{X_N,X_{x_1}\to X_M\},\{X_P,X_{x_2}\to X_M\}\}$$
+        \item Si $M = \delta_\bot\;N$ alors on retourne $\PP_N\cup\{\{X_N,\voidt\}\}$.
+    \end{itemize}
+\end{defi}
+
+\begin{rmk}
+    Pour une implantation réelle, on peut considérer qu'on génère une nouvelle variable de type à chaque sous-terme, et on garde un environnement global contenant les variables de type de chaque variable.
+\end{rmk}
+
+\begin{defi}[Substitution constante]
+    On dit que $\sigma$ est constante si pour chaque variable $X$ dans le domaine de $\sigma$, $\sigma(X)$ est un type ne contenant pas de variable de type.
+\end{defi}
+
+\begin{them}
+    Soit $M$ un terme typé sans annotation et $\Gamma$ un environnement de typage contenant toutes les variables libre de $M$, et dont les types associés à chaque variable n'ont pas de variable de type. Alors pour tout $\sigma\in U(\PP_M)$ si $\sigma$ est constante alors $\Gamma\vdash M : \sigma(X_M)$ et pour tout $\tau$ tel que $\Gamma\vdash M : \tau$ il existe $\sigma\in U(\PP_M)$ tel que $\sigma(X) = \tau$.
+\end{them}
+
+\begin{exo}
+    Prouver ce résultat. \textit{Indication : on raisonnera par induction sur la relation de typage.}
+\end{exo}
